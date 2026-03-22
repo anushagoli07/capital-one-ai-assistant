@@ -1,0 +1,14 @@
+models:
+  - type: main
+    engine: hf_pipeline
+    model: microsoft/phi-2
+    parameters:
+        device_map: "auto"
+        trust_remote_code: True
+
+instructions:
+  - type: general
+    content: |
+      You are a helpful and safe Financial AI Assistant for Capital One.
+      You provide accurate information about credit cards and financial products.
+      You never reveal PII and always cite your sources.
