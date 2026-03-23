@@ -4,6 +4,7 @@ import time
 from core.rag_engine import RAGEngine
 from core.guardrails.guardrails_engine import FinancialGuardrails
 from mlops.experiment_tracker import ExperimentTracker
+from eval.ragas_evaluator import RAGASEvaluator
 from data.data_loader import load_financial_products
 
 app = FastAPI(
@@ -19,6 +20,7 @@ rag = RAGEngine()
 rag.build_knowledge_base(documents)
 guardrails = FinancialGuardrails()
 tracker = ExperimentTracker()
+evaluator = RAGASEvaluator()
 print("Platform ready!")
 
 # Input schema
@@ -33,6 +35,10 @@ class Answer(BaseModel):
     latency_ms: float
     is_safe: bool
     safety_message: str
+    quality_score: float = 0.0
+    faithfulness: float = 0.0
+    answer_relevancy: float = 0.0
+    context_precision: float = 0.0
 
 @app.get("/")
 def home():
@@ -49,7 +55,8 @@ def health():
         "components": {
             "rag_engine": "ready",
             "guardrails": "active",
-            "mlflow": "tracking"
+            "mlflow": "tracking",
+            "ragas": "evaluating"
         }
     }
 
@@ -80,13 +87,26 @@ def ask(question: Question):
     # Step 2: Get answer from RAG engine
     result = rag.query(question.question)
 
-    # Step 3: Log metrics to MLflow
+    # Step 3: Evaluate quality with RAGAS
+    context = " ".join(result["sources"])
+    ragas_scores = evaluator.evaluate(
+        question.question,
+        result["answer"],
+        context,
+        result["sources"]
+    )
+
+    # Step 4: Log everything to MLflow
     tracker.log_query({
         "question": question.question,
         "answer": result["answer"],
         "latency_ms": result["latency_ms"],
         "retrieval_count": result["retrieval_count"],
-        "is_safe": True
+        "is_safe": True,
+        "quality_score": ragas_scores["overall_score"],
+        "faithfulness": ragas_scores["faithfulness"],
+        "answer_relevancy": ragas_scores["answer_relevancy"],
+        "context_precision": ragas_scores["context_precision"]
     })
 
     return Answer(
@@ -95,7 +115,11 @@ def ask(question: Question):
         sources=result["sources"],
         latency_ms=result["latency_ms"],
         is_safe=True,
-        safety_message="approved"
+        safety_message="approved",
+        quality_score=ragas_scores["overall_score"],
+        faithfulness=ragas_scores["faithfulness"],
+        answer_relevancy=ragas_scores["answer_relevancy"],
+        context_precision=ragas_scores["context_precision"]
     )
 
 @app.get("/metrics")
@@ -104,4 +128,4 @@ def metrics():
     return {
         "safety": safety_metrics,
         "message": "Check MLflow UI for detailed metrics"
-  }
+    }
