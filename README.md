@@ -1,4 +1,4 @@
-# 🏦 Capital One AI Assistant (Recruiter Edition)
+# 🏦 Capital One AI Assistant 
 
 A production-grade, safe, and optimized Retrieval-Augmented Generation (RAG) system designed for personal finance intelligence. This project demonstrates expertise in LLMs, MLOps, Governance, and AWS deployment, specifically tailored for the high standards of a **Senior Machine Learning Engineer** role at Capital One.
 
